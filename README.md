@@ -55,7 +55,261 @@ This project is an end-to-end data analysis solution designed to extract critica
 
 ### 9. SQL Analysis: Complex Queries and Business Problem Solving
    - **Business Problem-Solving**: Write and execute complex SQL queries to answer critical business questions, such as:
-     - Revenue trends across branches and categories.
+     - Walmart Project Queries - MySQL
+-- Business Problem Q1: Find different payment methods, number of transactions, and quantity sold by payment method
+```sq
+SELECT 
+    payment_method,
+    COUNT(*) AS no_payments,
+    SUM(quantity) AS no_qty_sold
+FROM walmart
+GROUP BY payment_method;
+```
+-- Project Question #2: Identify the highest-rated category in each branch
+-- Display the branch, category, and avg rating
+```sq
+SELECT branch, category, avg_rating
+FROM (
+    SELECT 
+        branch,
+        category,
+        AVG(rating) AS avg_rating,
+        RANK() OVER(PARTITION BY branch ORDER BY AVG(rating) DESC) AS rank
+    FROM walmart
+    GROUP BY branch, category
+) AS ranked
+WHERE rank = 1;
+```
+-- Q3: Identify the busiest day for each branch based on the number of transactions
+```sq
+SELECT branch, day_name, no_transactions
+FROM (
+    SELECT 
+        branch,
+        DAYNAME(STR_TO_DATE(date, '%d/%m/%Y')) AS day_name,
+        COUNT(*) AS no_transactions,
+        RANK() OVER(PARTITION BY branch ORDER BY COUNT(*) DESC) AS rank
+    FROM walmart
+    GROUP BY branch, day_name
+) AS ranked
+WHERE rank = 1;
+```
+-- Q4: Calculate the total quantity of items sold per payment method
+```sq
+SELECT 
+    payment_method,
+    SUM(quantity) AS no_qty_sold
+FROM walmart
+GROUP BY payment_method;
+```
+-- Q5: Determine the average, minimum, and maximum rating of categories for each city
+```sq
+SELECT 
+    city,
+    category,
+    MIN(rating) AS min_rating,
+    MAX(rating) AS max_rating,
+    AVG(rating) AS avg_rating
+FROM walmart
+GROUP BY city, category;
+```
+-- Q6: Calculate the total profit for each category
+```sq
+SELECT 
+    category,
+    SUM(unit_price * quantity * profit_margin) AS total_profit
+FROM walmart
+GROUP BY category
+ORDER BY total_profit DESC;
+```
+-- Q7: Determine the most common payment method for each branch
+```sq
+WITH cte AS (
+    SELECT 
+        branch,
+        payment_method,
+        COUNT(*) AS total_trans,
+        RANK() OVER(PARTITION BY branch ORDER BY COUNT(*) DESC) AS rank
+    FROM walmart
+    GROUP BY branch, payment_method
+)
+SELECT branch, payment_method AS preferred_payment_method
+FROM cte
+WHERE rank = 1;
+```
+
+-- Q8: Categorize sales into Morning, Afternoon, and Evening shifts
+```sq
+SELECT
+    branch,
+    CASE 
+        WHEN HOUR(TIME(time)) < 12 THEN 'Morning'
+        WHEN HOUR(TIME(time)) BETWEEN 12 AND 17 THEN 'Afternoon'
+        ELSE 'Evening'
+    END AS shift,
+    COUNT(*) AS num_invoices
+FROM walmart
+GROUP BY branch, shift
+ORDER BY branch, num_invoices DESC;
+```
+-- Q9: Identify the 5 branches with the highest revenue decrease ratio from last year to current year (e.g., 2022 to 2023)
+```sq
+WITH revenue_2022 AS (
+    SELECT 
+        branch,
+        SUM(total) AS revenue
+    FROM walmart
+    WHERE YEAR(STR_TO_DATE(date, '%d/%m/%Y')) = 2022
+    GROUP BY branch
+),
+revenue_2023 AS (
+    SELECT 
+        branch,
+        SUM(total) AS revenue
+    FROM walmart
+    WHERE YEAR(STR_TO_DATE(date, '%d/%m/%Y')) = 2023
+    GROUP BY branch
+)
+SELECT 
+    r2022.branch,
+    r2022.revenue AS last_year_revenue,
+    r2023.revenue AS current_year_revenue,
+    ROUND(((r2022.revenue - r2023.revenue) / r2022.revenue) * 100, 2) AS revenue_decrease_ratio
+FROM revenue_2022 AS r2022
+JOIN revenue_2023 AS r2023 ON r2022.branch = r2023.branch
+WHERE r2022.revenue > r2023.revenue
+ORDER BY revenue_decrease_ratio DESC
+LIMIT 5;
+```
+
+-- Walmart Project Queries
+-- Business Problems
+--Q.1 Find different payment method and number of transactions, number of qty sold
+```sq
+SELECT 
+	 payment_method,
+	 COUNT(*) as no_payments,
+	 SUM(quantity) as no_qty_sold
+FROM walmart
+GROUP BY payment_method
+```
+-- Project Question #2
+-- Identify the highest-rated category in each branch, displaying the branch, category
+-- AVG RATING
+```sq
+SELECT * 
+FROM
+(	SELECT 
+		branch,
+		category,
+		AVG(rating) as avg_rating,
+		RANK() OVER(PARTITION BY branch ORDER BY AVG(rating) DESC) as rank
+	FROM walmart
+	GROUP BY 1, 2
+)
+WHERE rank = 1
+```
+-- Q.3 Identify the busiest day for each branch based on the number of transactions
+```sq
+SELECT * 
+FROM
+	(SELECT 
+		branch,
+		TO_CHAR(TO_DATE(date, 'DD/MM/YY'), 'Day') as day_name,
+		COUNT(*) as no_transactions,
+		RANK() OVER(PARTITION BY branch ORDER BY COUNT(*) DESC) as rank
+	FROM walmart
+	GROUP BY 1, 2
+	)
+WHERE rank = 1
+```
+-- Q. 4 
+-- Calculate the total quantity of items sold per payment method. List payment_method and total_quantity.
+```sq
+SELECT 
+	 payment_method,
+	 -- COUNT(*) as no_payments,
+	 SUM(quantity) as no_qty_sold
+FROM walmart
+GROUP BY payment_method
+```
+-- Q.5
+-- Determine the average, minimum, and maximum rating of category for each city. 
+-- List the city, average_rating, min_rating, and max_rating.
+```sq
+SELECT 
+	city,
+	category,
+	MIN(rating) as min_rating,
+	MAX(rating) as max_rating,
+	AVG(rating) as avg_rating
+FROM walmart
+GROUP BY 1, 2
+```
+-- Q.6
+-- Calculate the total profit for each category by considering total_profit as
+-- (unit_price * quantity * profit_margin). 
+-- List category and total_profit, ordered from highest to lowest profit.
+```sq
+SELECT 
+	category,
+	SUM(total) as total_revenue,
+	SUM(total * profit_margin) as profit
+FROM walmart
+GROUP BY 1
+```
+-- Q.7
+-- Determine the most common payment method for each Branch. 
+-- Display Branch and the preferred_payment_method.
+```sq
+WITH cte 
+AS
+(SELECT 
+	branch,
+	payment_method,
+	COUNT(*) as total_trans,
+	RANK() OVER(PARTITION BY branch ORDER BY COUNT(*) DESC) as rank
+FROM walmart
+GROUP BY 1, 2
+)
+SELECT *
+FROM cte
+WHERE rank = 1
+```
+-- Q.8
+-- Categorize sales into 3 group MORNING, AFTERNOON, EVENING 
+-- Find out each of the shift and number of invoices
+```sq
+SELECT
+	branch,
+CASE 
+		WHEN EXTRACT(HOUR FROM(time::time)) < 12 THEN 'Morning'
+		WHEN EXTRACT(HOUR FROM(time::time)) BETWEEN 12 AND 17 THEN 'Afternoon'
+		ELSE 'Evening'
+	END day_time,
+	COUNT(*)
+FROM walmart
+GROUP BY 1, 2
+ORDER BY 1, 3 DESC
+```
+-- #9 Identify 5 branch with highest decrese ratio in 
+-- revevenue compare to last year(current year 2023 and last year 2022)
+
+-- rdr == last_rev-cr_rev/ls_rev*100
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    
      - Identifying best-selling product categories.
      - Sales performance by time, city, and payment method.
      - Analyzing peak sales periods and customer buying patterns.
@@ -80,17 +334,6 @@ This project is an end-to-end data analysis solution designed to extract critica
   - `pandas`, `numpy`, `sqlalchemy`, `mysql-connector-python`, `psycopg2`
 - **Kaggle API Key** (for data downloading)
 
-## Getting Started
-
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
-   ```
-2. Install Python libraries:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Set up your Kaggle API, download the data, and follow the steps to load and analyze.
 
 ---
 
@@ -122,11 +365,15 @@ Possible extensions to this project:
 
 ---
 
-## License
 
-This project is licensed under the MIT License. 
+## Acknowledgments
+
+- **Data Source**: Kaggle’s Walmart Sales Dataset
+- **Inspiration**: Walmart’s business case studies on sales and supply chain optimization.
 
 ---
+
+
 
 ## Acknowledgments
 
